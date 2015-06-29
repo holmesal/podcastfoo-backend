@@ -2,7 +2,7 @@
   "name": "podcastfoo-backend",
   "version": "0.0.1",
   "description": "backend for podcastfoo",
-  "main": "server.coffee",
+  "main": "queues.coffee",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
