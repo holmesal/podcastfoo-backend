@@ -7,12 +7,12 @@ github = new GitHubApi
 	headers:
 		'user-agent': 'mountainlab'
 
-unless process.env.token
-	console.error '[feedbackQueue] - no token provided'
+unless process.env.githubToken
+	console.error '[feedbackQueue] - no github token provided'
 
 github.authenticate
 	type: 'oauth'
-	token: process.env.token
+	token: process.env.githubToken
 
 queueRef = new Firebase 'https://podcast.firebaseio.com/queues/feedback'
 queue = new Queue queueRef, (data, progress, resolve, reject) ->
