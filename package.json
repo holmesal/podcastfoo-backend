@@ -15,6 +15,8 @@
     "firebase-queue": "^1.2.1",
     "github": "^0.2.4",
     "lodash": "^3.9.3",
-    "request": "^2.57.0"
+    "moment": "^2.10.3",
+    "request": "^2.57.0",
+    "slug": "^0.9.1"
   }
 }
