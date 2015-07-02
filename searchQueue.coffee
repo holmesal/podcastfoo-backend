@@ -18,6 +18,7 @@ searchRef.child('request').on 'child_added', (snap) ->
 			resultsRef = searchRef.child "response/#{snap.ref().key()}"
 			resultsRef.set
 				results: body.results.slice 0,5
+				queryParams: params
 
 			# Remove the search request ref
 			snap.ref().set null
