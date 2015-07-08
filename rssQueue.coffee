@@ -31,10 +31,18 @@ queue = new Queue queueRef, (itunes, progress, resolve, reject) ->
 	checkAndStoreSlugs slug, podId, 0, podcastRef
 
 	# go look for new episodes
-	findNewEpisodes podId, itunes
+	findNewEpisodes podId
 
 	# TODO - break this out into chained queue items
 	resolve()
+
+episodeQueueRef = rootRef.child 'queues/episodeQueue'
+episodeQueue = new Queue episodeQueueRef, (data, progress, resolve, reject) ->
+	if data.podcastId
+		findNewEpisodes data.podcastId
+		resolve()	
+	else
+		reject()
 
 checkAndStoreSlugs = (slug, podcastId, attempts, podcastRef) ->
 	# If this isn't the first run, try appending attempts to slug
@@ -58,50 +66,54 @@ checkAndStoreSlugs = (slug, podcastId, attempts, podcastRef) ->
 				type: 'podcast'
 				uuid: podcastId
 
-findNewEpisodes = (podId, itunes) ->
-	req = request itunes.feedUrl
-	feed = new feedparser
-		addMeta: false
-	req.on 'error', (err) ->
-		console.log "error fetching feed for #{itunes.collectionName}", err
-	req.on 'response', (res) ->
-		@emit 'error', new Error 'bad status code' unless res.statusCode is 200
-		@pipe feed
-	feed.on 'error', (err) ->
-		console.log "error parsing feed for #{itunes.collectionName}", err
-	feed.on 'readable', ->
-		while item = @.read()
-			# hash the guid
-			episode = 
-				hash: crypto.createHash('md5').update(item.guid).digest 'hex'
-				timestamp: moment(item.pubdate).valueOf()
-				podcastId: podId
-			episode.title = item.title if item.title
-			episode.description = item.description if item.description
-			episode.summary = item.summary if item.summary
-			episode.link = item.link if item.link
-			episode.origlink = item.origlink if item.origlink
-			episode.permalink = item.permalink if item.permalink
-			episode.date = item.date if item.date
-			episode.pubdate = item.pubdate if item.pubdate
-			episode.author = item.author if item.author
-			episode.guid = item.guid if item.guid
-			episode.image = item.image if item.image
-			episode.enclosures = item.enclosures if item.enclosures
-			for enclosure in item.enclosures
-				if enclosure.type = 'audio/mpeg'
-					episode.audio = enclosure
+findNewEpisodes = (podId) ->
+	console.log "finding new episodes for #{podId}"
+	podItunesRef = rootRef.child "podcasts/#{podId}/itunes"
+	podItunesRef.once 'value', (snap) ->
+		itunes = snap.val()
+		req = request itunes.feedUrl
+		feed = new feedparser
+			addMeta: false
+		req.on 'error', (err) ->
+			console.log "error fetching feed for #{itunes.collectionName}", err
+		req.on 'response', (res) ->
+			@emit 'error', new Error 'bad status code' unless res.statusCode is 200
+			@pipe feed
+		feed.on 'error', (err) ->
+			console.log "error parsing feed for #{itunes.collectionName}", err
+		feed.on 'readable', ->
+			while item = @.read()
+				# hash the guid
+				episode = 
+					hash: crypto.createHash('md5').update(item.guid).digest 'hex'
+					timestamp: moment(item.pubdate).valueOf()
+					podcastId: podId
+				episode.title = item.title if item.title
+				episode.description = item.description if item.description
+				episode.summary = item.summary if item.summary
+				episode.link = item.link if item.link
+				episode.origlink = item.origlink if item.origlink
+				episode.permalink = item.permalink if item.permalink
+				episode.date = item.date if item.date
+				episode.pubdate = item.pubdate if item.pubdate
+				episode.author = item.author if item.author
+				episode.guid = item.guid if item.guid
+				episode.image = item.image if item.image
+				episode.enclosures = item.enclosures if item.enclosures
+				for enclosure in item.enclosures
+					if enclosure.type = 'audio/mpeg'
+						episode.audio = enclosure
 
-			slug = slugify(episode.title).toLowerCase()
-			episode.slug = slug
+				slug = slugify(episode.title).toLowerCase()
+				episode.slug = slug
 
-			# Store a reference to this episode on the podcast
-			compactEpisodesRef = rootRef.child "podcasts/#{podId}/episodes/#{episode.hash}"
-			compactEpisodesRef.set
-				episodeId: episode.hash
-				timestamp: episode.timestamp
-				slug: slug
+				# Store a reference to this episode on the podcast
+				compactEpisodesRef = rootRef.child "podcasts/#{podId}/episodes/#{episode.hash}"
+				compactEpisodesRef.set
+					episodeId: episode.hash
+					timestamp: episode.timestamp
+					slug: slug
 
-			# Store this episode in the episodes list
-			episodeRef = rootRef.child "episodes/#{episode.hash}"
-			episodeRef.update episode
+				# Store this episode in the episodes list
+				episodeRef = rootRef.child "episodes/#{episode.hash}"
+				episodeRef.update episode
