@@ -10,6 +10,11 @@ searchRef.set null
 searchRef.child('request').on 'child_added', (snap) ->
 	params = snap.val()?.params
 
+	unless params
+		console.error 'improper query parameters passed'
+		console.error snap.val()
+		return false
+
 	request 
 		url: 'https://itunes.apple.com/search'
 		json: true
