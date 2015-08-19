@@ -9,9 +9,16 @@ rootRef = new Firebase 'https://podcast.firebaseio.com'
 
 queueRef = rootRef.child 'queues/activity'
 queue = new Queue queueRef, (data, progress, resolve, reject) ->
+
 	
 	# For now, we'll just push this item into everyone's stream
 	if data.type
+
+		# There's a big shared activity stream that everyone can see
+		# This is a hack right now, because I don't want to auto-populate streams on login yet
+		sharedStreamRef = rootRef.child 'sharedActivityStream'
+		sharedStreamRef.push data
+
 		# Push this into everyone's activity streams
 		usersRef = rootRef.child 'users'
 		usersRef.once 'value', (snap) ->
@@ -20,7 +27,7 @@ queue = new Queue queueRef, (data, progress, resolve, reject) ->
 				for uuid, user of users
 					streamRef = usersRef.child "#{uuid}/stream"
 					streamRef.push data
-					resolve()
+				resolve()
 	else
 		reject 'data did not have a type'
 		
