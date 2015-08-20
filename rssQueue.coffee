@@ -20,7 +20,7 @@ queue = new Queue queueRef, (itunes, progress, resolve, reject) ->
 	console.log(slug)
 
 	# we use the itunes collection id as a unique identifier
-	podId = itunes.collectionId
+	podId = String(itunes.collectionId)
 
 	# update podcast data (will store if we don't have it)
 	podcastRef = rootRef.child "podcasts/#{podId}"
