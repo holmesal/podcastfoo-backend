@@ -1,4 +1,5 @@
 require './activityQueue'
-require './feedbackQueue'
+# require './feedbackQueue'
 require './rssQueue'
 require './searchQueue'
+require './authQueue'

@@ -8,46 +8,40 @@ Firebase = require 'firebase'
 rootRef = new Firebase 'https://podcast.firebaseio.com'
 
 queueRef = rootRef.child 'queues/activity'
-queue = new Queue queueRef, (data, progress, resolve, reject) ->
+queue = new Queue queueRef, (item, progress, resolve, reject) ->
 
-	
-	# For now, we'll just push this item into everyone's stream
-	if data.type
+	console.info 'got activity item'
+	console.info item
 
-		# There's a big shared activity stream that everyone can see
-		# This is a hack right now, because I don't want to auto-populate streams on login yet
-		sharedStreamRef = rootRef.child 'sharedActivityStream'
-		sharedStreamRef.push data
+	# Store the item in the global activity list
+	activityRef = rootRef.child('activity').push()
+	activityRef.set item
 
-		# Push this into everyone's activity streams
-		usersRef = rootRef.child 'users'
-		usersRef.once 'value', (snap) ->
-			users = snap.val()
-			if users
-				for uuid, user of users
-					streamRef = usersRef.child "#{uuid}/stream"
-					streamRef.push data
-				resolve()
-	else
-		reject 'data did not have a type'
-		
+	# Store this activity on this user's activity list
+	userActivityRef = rootRef.child "activityByUser/#{item.userId}/#{activityRef.key()}"
+	userActivityRef.set item.timestamp
 
-	# if data.type is 'comment'
-	# 	# Go get the author
-	# 	authorRef = rootRef.child "users/#{data.authorId}/public"
-	# 	authorRef.once 'value', (snap) ->
-	# 		author = snap.val()
-	# 		if author
-	# 			# Go get the podcast
-	# 			podcastRef = rootRef.child "podcasts/#{data.podcastId}/itunes"
-	# 			podcastRef.once 'value', (snap) ->
-	# 				podcast = snap.val()
-	# 				if podcast
-	# 					# Go get the episode
-	# 					# TODO -refactor the episode structure to allow fetching of metadata only
-	# 					episodeMetaRef = rootRef.child "episodes/#{data.episodeId}"
-	# 					episodeMetaRef.once 'value', (snap) ->
-	# 						if episodeMeta
+	# Fan out this item to all of this user's followers
+	followersRef = rootRef.child "users/#{item.userId}/followers"
+	followersRef.once 'value', (snap) ->
+		followers = snap.val()
+		for uuid, something of followers
+			userStreamRef = rootRef.child "streamByUser/#{uuid}/#{activityRef.key()}"
+			console.info "pushing activity #{activityRef.key()} ---> follower #{uuid}"
+			userStreamRef.set item.timestamp
+		resolve()
 
-		# Build a stream activity item
-		# Push it into the stream of everyone that cares
+	# if this is a commentLike or a commentReply, notify the owner of the comment
+	if item.type is 'commentLike' or item.type is 'commentReply'
+		commentRef = rootRef.child "commentsByEpisode/#{item.data.episodeId}/#{item.data.commentId}"
+		commentRef.once 'value', (snap) ->
+			comment = snap.val()
+			unless comment
+				console.error "no comment found at #{commentRef.toString()}, requested by comment like #{activityRef.toString()}"
+				return false
+			# Push this activity into the owner's feed
+			# If the owner is following this user, this set will happen twice - I think this is easier than maintaining a list 
+			# of users that have been notified and checking it here - planning to break this out into separate queue stages someday
+			ownerStreamRef = rootRef.child "streamByUser/#{comment.authorId}/#{activityRef.key()}"
+			console.info "pushing activity #{activityRef.key()} ---> owner #{comment.authorId}"
+			ownerStreamRef.set item.timestamp
