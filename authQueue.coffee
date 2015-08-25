@@ -54,6 +54,7 @@ follow = (selfId, toFollowId) ->
 			recentActivityRef = rootRef.child("activityByUser/#{toFollowId}").limitToLast 10
 			recentActivityRef.once 'value', (snap) ->
 				recentActivity = snap.val()
-				userStreamRef = rootRef.child "streamByUser/#{selfId}"
-				userStreamRef.update snap.val()
+				if recentActivity
+					userStreamRef = rootRef.child "streamByUser/#{selfId}"
+					userStreamRef.update recentActivity
 			# TODO - Send this user a notification that you are now following them
