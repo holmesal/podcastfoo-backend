@@ -15,6 +15,9 @@ searchRef.child('request').on 'child_added', (snap) ->
 		console.error snap.val()
 		return false
 
+	unless params.limit
+		params.limit = 5
+
 	request 
 		url: 'https://itunes.apple.com/search'
 		json: true
@@ -23,7 +26,7 @@ searchRef.child('request').on 'child_added', (snap) ->
 			resultsRef = searchRef.child "response/#{snap.ref().key()}"
 			results = body.results or []
 			resultsRef.set
-				results: results.slice 0,5
+				results: results.slice 0, params.limit
 				queryParams: params
 
 			# Remove the search request ref
